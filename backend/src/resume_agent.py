@@ -52,6 +52,10 @@ else:
 
 READ_PDFS_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../read_pdfs"))
 
+@app.get("/", response_class=HTMLResponse)
+async def main():
+    return HTML_FORM
+
 def extract_text_from_pdf(pdf_path):
     text = ""
     tesseract_available = shutil.which("tesseract") is not None
@@ -110,6 +114,69 @@ def call_gemini_extract_fields(resume_text):
             print("Failed to parse fields from Gemini response.")
             fields = {}
     return fields
+
+def call_gemini_score(fields, job_role):
+    genai.configure(api_key=GEMINI_API_KEY)
+    model = genai.GenerativeModel('gemini-2.5-flash')
+    prompt = (
+        f"Score the following candidate out of 100 for the job role '{job_role}'.\n"
+        f"Details: {fields}\n"
+        "Give only the score as a number."
+    )
+    response = model.generate_content(prompt)
+    score_text = response.text.strip()
+    score_match = re.search(r"\d+", score_text)
+    return int(score_match.group()) if score_match else 0
+
+@app.post("/analyze_resume/", response_class=HTMLResponse)
+async def analyze_resume(job_role: str = Form(...)):
+    # Find the latest resume_text_N.txt file
+    resume_files = [f for f in os.listdir(READ_PDFS_PATH) if f.startswith("resume_text_") and f.endswith(".txt")]
+    if not resume_files:
+        return HTMLResponse(content="<h2>No resume found. Please upload first.</h2>")
+    latest_file = sorted(resume_files)[-1]
+    resume_path = os.path.join(READ_PDFS_PATH, latest_file)
+    with open(resume_path, "r", encoding="utf-8") as f:
+        resume_text = f.read()
+
+    # Extract fields using Gemini
+    fields = call_gemini_extract_fields(resume_text)
+    score = call_gemini_score(fields, job_role)
+
+    # Store in MongoDB Atlas using ResumeConfig
+    candidate_data = {
+        "Name": fields.get('Name', 'N/A'),
+        "College": fields.get('College', 'N/A'),
+        "CGPA": fields.get('CGPA', 'N/A'),
+        "Tech Skills": fields.get('Tech Skills', 'N/A'),
+        "Soft Skills": fields.get('Soft Skills', 'N/A'),
+        "Score": score,
+        "Job Role": job_role,
+        "Source File": latest_file
+    }
+    # store_candidate_in_mongo(candidate_data)
+
+    # Display results on UI with a button to go to select_hired
+    html = f"""
+    <html>
+        <body>
+            <h2>Resume Analysis for Job Role: {job_role}</h2>
+            <ul>
+                <li><strong>Name:</strong> {fields.get('Name', 'N/A')}</li>
+                <li><strong>College:</strong> {fields.get('College', 'N/A')}</li>
+                <li><strong>CGPA:</strong> {fields.get('CGPA', 'N/A')}</li>
+                <li><strong>Tech Skills:</strong> {fields.get('Tech Skills', 'N/A')}</li>
+                <li><strong>Soft Skills:</strong> {fields.get('Soft Skills', 'N/A')}</li>
+                <li><strong>Score (out of 100):</strong> {score}</li>
+            </ul>
+            <form action="/select_hired/" method="get">
+                <button type="submit">Go to Hire Candidates</button>
+            </form>
+            <a href="/">Upload another resume</a>
+        </body>
+    </html>
+    """
+    return HTMLResponse(content=html)
 
 os.makedirs(READ_PDFS_PATH, exist_ok=True)
 

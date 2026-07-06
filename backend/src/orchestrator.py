@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import glob
 
-from resume_agent import extract_text_from_pdf, call_gemini_extract_fields
+from resume_agent import extract_text_from_pdf, call_gemini_extract_fields, call_gemini_score
 
 app = FastAPI()
 
@@ -85,6 +85,20 @@ async def orchestrate_workflow(
         saved_filename = save_resume_text(resume_text)
 
         fields = call_gemini_extract_fields(resume_text)
+        score = call_gemini_score(fields, job_role)
+
+        cgpa_value = fields.get("CGPA")
+        if cgpa_value is None:
+            cgpa_value = "N/A"
+
+        candidate_info = CandidateInfo(
+            name=fields.get("Name", "N/A"),
+            College=fields.get("College", "N/A"),
+            Tech_skills=fields.get("Tech Skills", []),
+            Soft_skills=fields.get("Soft Skills", []),
+            CGPA=str(cgpa_value),
+            score=score
+        )
     finally:
         if temp_path and os.path.exists(temp_path):
             os.remove(temp_path)
