@@ -52,6 +52,19 @@ else:
 
 READ_PDFS_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../read_pdfs"))
 
+class ResumeConfig:
+    MONGODB_USERNAME = "publicUser"
+    MONGODB_PASSWORD = "publicPass123"
+    MONGODB_CLUSTER = "cluster0.qx07p39.mongodb.net"
+    DATABASE_NAME = "resume_screening"
+    ENCODED_PASSWORD = urllib.parse.quote_plus(MONGODB_PASSWORD)
+    MONGODB_URL = (
+        f"mongodb+srv://{MONGODB_USERNAME}:{ENCODED_PASSWORD}"
+        f"@{MONGODB_CLUSTER}/"
+        f"?retryWrites=true&w=majority&appName=Cluster0"
+    )
+    CANDIDATES_COLLECTION = "candidates"
+
 @app.get("/", response_class=HTMLResponse)
 async def main():
     return HTML_FORM
@@ -128,6 +141,14 @@ def call_gemini_score(fields, job_role):
     score_match = re.search(r"\d+", score_text)
     return int(score_match.group()) if score_match else 0
 
+def store_candidate_in_mongo(candidate_data):
+    try:
+        client = MongoClient(ResumeConfig.MONGODB_URL)
+        db = client[ResumeConfig.DATABASE_NAME]
+        db[ResumeConfig.CANDIDATES_COLLECTION].insert_one(candidate_data)
+    except Exception as e:
+        print(f"MongoDB insert error: {e}")
+
 @app.post("/analyze_resume/", response_class=HTMLResponse)
 async def analyze_resume(job_role: str = Form(...)):
     # Find the latest resume_text_N.txt file
@@ -154,7 +175,7 @@ async def analyze_resume(job_role: str = Form(...)):
         "Job Role": job_role,
         "Source File": latest_file
     }
-    # store_candidate_in_mongo(candidate_data)
+    store_candidate_in_mongo(candidate_data)
 
     # Display results on UI with a button to go to select_hired
     html = f"""
