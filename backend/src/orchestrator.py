@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import glob
 
-from resume_agent import extract_text_from_pdf
+from resume_agent import extract_text_from_pdf, call_gemini_extract_fields
 
 app = FastAPI()
 
@@ -83,6 +83,8 @@ async def orchestrate_workflow(
 
         resume_text = extract_text_from_pdf(temp_path)
         saved_filename = save_resume_text(resume_text)
+
+        fields = call_gemini_extract_fields(resume_text)
     finally:
         if temp_path and os.path.exists(temp_path):
             os.remove(temp_path)
