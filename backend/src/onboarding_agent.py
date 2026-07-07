@@ -13,6 +13,9 @@ from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv(dotenv_path=Path(__file__).resolve().parent / ".env")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+MONGO_URI = os.getenv("MONGO_URI")
+DB_NAME = os.getenv("MONGO_DB_NAME")
+COLLECTION_NAME = os.getenv("MONGO_COLLECTION_NAME")
 
 genai.configure(api_key=GEMINI_API_KEY)
 
@@ -96,11 +99,6 @@ def process_database_candidates(mongo_uri: str, db_name: str, collection_name: s
 
 # --- 6. Main Execution Block ---
 if __name__ == "__main__":
-    MONGO_URI = "mongodb+srv://publicUser:publicPass123@cluster0.qx07p39.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
-    DB_NAME = "resume_screening"
-    COLLECTION_NAME = "candidates"
-
-
     process_database_candidates(MONGO_URI, DB_NAME, COLLECTION_NAME)
 
     print("\n" + "="*60)
