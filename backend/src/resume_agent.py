@@ -42,6 +42,18 @@ JOB_ROLE_FORM = """
 </html>
 """
 
+SELECT_N_FORM = """
+<html>
+    <body>
+        <h2>How many candidates do you want to hire?</h2>
+        <form action="/mark_hired/" method="post">
+            <input name="n_hire" type="number" min="1" placeholder="Number to hire"/>
+            <input type="submit"/>
+        </form>
+    </body>
+</html>
+"""
+
 load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / ".env")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if GEMINI_API_KEY:
@@ -198,6 +210,31 @@ async def analyze_resume(job_role: str = Form(...)):
     </html>
     """
     return HTMLResponse(content=html)
+
+@app.get("/select_hired/", response_class=HTMLResponse)
+async def select_hired():
+    return SELECT_N_FORM
+
+@app.post("/mark_hired/", response_class=HTMLResponse)
+async def mark_hired(n_hire: int = Form(...)):
+    try:
+        client = MongoClient(ResumeConfig.MONGODB_URL)
+        db = client[ResumeConfig.DATABASE_NAME]
+        collection = db[ResumeConfig.CANDIDATES_COLLECTION]
+        
+        collection.update_many({}, {"$set": {"Hired": "No"}})
+        
+        top_candidates = list(collection.find().sort("Score", -1).limit(n_hire))
+        
+        for candidate in top_candidates:
+            collection.update_one({"_id": candidate["_id"]}, {"$set": {"Hired": "Yes"}})
+        html = "<html><body><h2>Top candidates marked as Hired!</h2><ul>"
+        for candidate in top_candidates:
+            html += f"<li>{candidate.get('Name', 'N/A')} (Score: {candidate.get('Score', 'N/A')})</li>"
+        html += "</ul><a href='/'>Upload another resume</a></body></html>"
+        return HTMLResponse(content=html)
+    except Exception as e:
+        return HTMLResponse(content=f"<h2>Error: {e}</h2>")
 
 os.makedirs(READ_PDFS_PATH, exist_ok=True)
 

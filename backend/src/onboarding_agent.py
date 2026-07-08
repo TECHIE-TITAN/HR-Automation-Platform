@@ -4,12 +4,7 @@ from pymongo import MongoClient
 import google.generativeai as genai
 from pathlib import Path
 
-# Unset conflicting environment variables
-# os.environ.pop("GCLOUD_PROJECT", None)
-# os.environ.pop("GOOGLE_APPLICATION_CREDENTIALS", None)
 
-
-# --- 1. Load API Key from .env ---
 from dotenv import load_dotenv
 load_dotenv(dotenv_path=Path(__file__).resolve().parent / ".env")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -30,7 +25,7 @@ def generate_onboarding_plan(candidate: Dict) -> str:
         plan_duration = 7
     elif score <= 80:
         plan_duration = 5
-    else: # score > 80
+    else:
         plan_duration = 3
     
     print(f"Candidate score is {score}. Generating a {plan_duration}-day plan...")

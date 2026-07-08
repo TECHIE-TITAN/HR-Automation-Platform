@@ -100,7 +100,7 @@ async def orchestrate_workflow(
             CGPA=str(cgpa_value),
             score=score
         )
-        # generating onboarding plan 
+        
         onboarding_plan=generate_onboarding_plan(candidate_info.dict())
     finally:
         if temp_path and os.path.exists(temp_path):
