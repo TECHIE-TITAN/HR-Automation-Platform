@@ -1,0 +1,22 @@
+[
+  {
+    "id": 1,
+    "text": "Employees are entitled to 20 days of paid vacation per year. Vacation requests must be submitted at least 2 weeks in advance."
+  },
+  {
+    "id": 2,
+    "text": "Remote work policy allows employees to work from home up to 3 days per week with manager approval."
+  },
+  {
+    "id": 3,
+    "text": "Health insurance coverage begins on the first day of employment and covers medical, dental, and vision."
+  },
+  {
+    "id": 4,
+    "text": "Professional development budget of $2000 per year is available for courses, certifications, and conferences."
+  },
+  {
+    "id": 5,
+    "text": "Sick leave policy provides 10 days per year with no doctor's note required for absences under 3 consecutive days."
+  }
+]
