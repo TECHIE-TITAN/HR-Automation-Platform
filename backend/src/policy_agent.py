@@ -48,3 +48,41 @@ def build_prompt(question: str, context: List[str], memory: List[Dict], role: st
         "Answer:"
     )
     return prompt
+
+load_dotenv(dotenv_path=Path(__file__).resolve().parent / ".env")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_API_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+
+def gemini_chat(prompt: str) -> str:
+    headers = {"Content-Type": "application/json"}
+    data = {
+        "contents": [{"parts": [{"text": prompt}]}]
+    }
+    response = requests.post(GEMINI_API_URL, headers=headers, json=data)
+    response.raise_for_status()
+    result = response.json()
+    try:
+        return result["candidates"][0]["content"]["parts"][0]["text"].strip()
+    except Exception:
+        return "[ERROR] Could not parse Gemini response."
+
+@app.post("/policy_qa", response_model=QAResponse)
+async def policy_qa(req: QARequest):
+    session_id = req.session_id or str(uuid.uuid4())
+    memory = SESSIONS.get(session_id, [])
+    answers = []
+    retrieved_contexts = []
+    for question in req.questions:
+        context = retrieve_context(question)
+        prompt = build_prompt(question, context, memory)
+        answer = gemini_chat(prompt)
+        answers.append(answer)
+        retrieved_contexts.append(context)
+        memory.append({"question": question, "answer": answer})
+    SESSIONS[session_id] = memory
+    return QAResponse(
+        session_id=session_id,
+        answers=answers,
+        memory=memory,
+        retrieved_contexts=retrieved_contexts
+    )

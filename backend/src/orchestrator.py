@@ -11,6 +11,7 @@ import glob
 
 from resume_agent import extract_text_from_pdf, call_gemini_extract_fields, call_gemini_score
 from onboarding_agent import  generate_onboarding_plan
+from policy_agent import retrieve_context, build_prompt, gemini_chat
 
 app = FastAPI()
 
@@ -22,6 +23,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+SESSION_MEMORY: Dict[str, Dict[str, Any]] = {}
 
 class CandidateInfo(BaseModel):
     name: str
@@ -102,6 +105,30 @@ async def orchestrate_workflow(
         )
         
         onboarding_plan=generate_onboarding_plan(candidate_info.dict())
+
+        try:
+            parsed_questions = json.loads(policy_questions) if policy_questions else []
+            if not isinstance(parsed_questions, list):
+                parsed_questions = []
+        except json.JSONDecodeError:
+            parsed_questions = []
+
+        policy_answers = {}
+        session_memory = []
+        for question in parsed_questions:
+            context = retrieve_context(question)
+            prompt = build_prompt(question, context, session_memory)
+            answer = gemini_chat(prompt)
+            policy_answers[question] = answer
+            session_memory.append({"question": question, "answer": answer})
+        memory["policy"] = session_memory
+        SESSION_MEMORY[session_id] = memory
+
+        return OrchestratorResponse(
+            candidate_info=candidate_info,
+            onboarding_plan=onboarding_plan,
+            policy_answers=policy_answers
+        )
     finally:
         if temp_path and os.path.exists(temp_path):
             os.remove(temp_path)
